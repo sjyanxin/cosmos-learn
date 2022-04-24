@@ -5,14 +5,11 @@ import {
 } from "@cosmjs/stargate";
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
 import axios from 'axios';
-import { chainMap } from "./assets/chains.js";
-import { createInterface } from "readline";
-import { validateMnemonic } from 'bip39';
+import {createInterface} from "readline";
 
-let API = '';
 async function getUnbondingDelegations(address) {
     return new Promise((resolve) => {
-        axios.get(`${API}/cosmos/staking/v1beta1/delegators/${address}/unbonding_delegations`).then(res => {
+        axios.get(`https://lcd-cosmos.cosmostation.io/cosmos/staking/v1beta1/delegators/${address}/unbonding_delegations`).then(res => {
             if (res.data.unbonding_responses.length > 0) {
                 let unbondingResponse = res.data.unbonding_responses[0];
                 let completion = unbondingResponse.entries[0].completion_time;
@@ -34,20 +31,20 @@ async function getQueryClient(rpcEndpoint) {
     return queryClient;
 }
 
-async function transfer(client, chain, from, recipient, amount) {
+async function transfer(client, from, recipient, amount) {
     let ops = [];
     let msg = {
         typeUrl: "/cosmos.bank.v1beta1.MsgSend",
         value: {
             fromAddress: from,
             toAddress: recipient,
-            amount: pkg.coins(amount, chain.denom)
+            amount: pkg.coins(amount, "uatom")
         },
     };
     ops.push(msg);
     const fee = {
-        amount: pkg.coins(10000, chain.denom),
-        gas: "200000",
+        amount: pkg.coins(6000, "uatom"),
+        gas: "180000",
     };
     let result = await client.signAndBroadcast(from, ops, fee, '');
     if (result.code > 0) {
@@ -68,16 +65,14 @@ function timeLeft(timeLeft) {
     return `${days} Days, ${hours} Hours, ${minutes} Mins, ${seconds} secs`
 }
 
-async function start(chain, mnemonic, recipient) {
-    const queryClient = await getQueryClient(chain.rpc);
+async function start(mnemonic, recipient) {
+    const rpcEndpoint = "https://cosmoshub.validator.network/";
+    const queryClient = await getQueryClient(rpcEndpoint);
     const wallet = await pkg.Secp256k1HdWallet.fromMnemonic(
-        mnemonic,{
-            prefix: chain.prefix
-        }
+        mnemonic
     );
-    API=chain.rest;
+
     const [account] = await wallet.getAccounts();
-    console.log(account.address)
     let completion = await getUnbondingDelegations(account.address);
     let current = new Date().getTime();
     let diff = completion - current;
@@ -86,18 +81,17 @@ async function start(chain, mnemonic, recipient) {
         current = new Date().getTime();
         diff = completion - current;
         console.log(timeLeft(diff) + " until unbonding completion");
-        await sleep(60 * 1000);
+        await sleep(10 * 1000);
     }
-    let balance = await queryClient.bank.balance(account.address, chain.denom);
+    let balance = await queryClient.bank.balance(account.address, "uatom");
     while (Number(balance.amount) / 1e6 < 0.1) {
+        console.log(`Your account has ${balance.amount / 1e6} ATOM`);
+        balance = await queryClient.bank.balance(account.address, "uatom");
         await sleep(1000);
-        console.log(`Your account has ${balance.amount / 1e6} ${chain.symbol}`);
-        balance = await queryClient.bank.balance(account.address, chain.denom);
-       
     }
-    const client = await SigningStargateClient.connectWithSigner(chain.rpc, wallet);
-    console.log(`Ready to transfer ${balance.amount / 1e6} ${chain.symbol} to ${recipient}`);
-    transfer(client,chain, account.address, recipient, Number(balance.amount) - 10000);
+    const client = await SigningStargateClient.connectWithSigner(rpcEndpoint, wallet);
+    console.log(`Ready to transfer ${balance.amount / 1e6} ATOM to ${recipient}`);
+    transfer(client, account.address, recipient, Number(balance.amount) - 10000);
 }
 
 
@@ -106,23 +100,8 @@ const readline = createInterface({
     output: process.stdout
 });
 readline.question("Please enter your mnemonic:\n", async (mnemonic) => {
-    if(!validateMnemonic(mnemonic)){
-        console.log("Not a valid mnemonic!")
-        process.exit(0);
-    }
     readline.question("Please enter the recipient:\n", async (recipient) => {
-        readline.question("Please select a chain(Enter number):\n1: Cosmos\n2: Osmosis\n3: Juno\n", async (option) => {
-            if(option==1){
-                start(chainMap['cosmoshub-4'],mnemonic,recipient);
-            }else if(option ==2){
-                start(chainMap['osmosis-1'],mnemonic,recipient);
-            }else if(option==3){
-                start(chainMap['juno-1'],mnemonic,recipient);
-            }else{
-                console.log("Wrong selection!");
-                process.exit(0);
-            }
-        });
+        start(mnemonic, recipient);
     });
 });
 

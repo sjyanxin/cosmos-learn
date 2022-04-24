@@ -2,7 +2,6 @@ export const chainMap = {
     "cosmoshub-4":{
         name:'cosmos',
         rpc:'https://rpc.cosmos.directory/cosmoshub',
-        rest:'https://lcd-cosmos.cosmostation.io',
         symbol:'ATOM',
         denom: "uatom",
         exponent: 6,
@@ -15,20 +14,18 @@ export const chainMap = {
     "osmosis-1":{
         name:'osmosis',
         rpc:'https://rpc.cosmos.directory/osmosis',
-        rest:'https://lcd-osmosis.blockapsis.com',
         symbol:'OSMO',
         denom: "uosmo",
         exponent: 6,
         min_tx_fee: ["0","0"],
-        gas:200000,
+        gas:250000,
         prefix:"osmo",
         claim_min:0.1,
         collect_min:0.1
     },
     "juno-1":{
         name:'juno',
-        rpc:'https://rpc-juno.ecostake.com',
-        rest:'https://lcd-juno.itastakers.com',
+        rpc:'https://rpc.cosmos.directory/juno',
         symbol:'JUNO',
         denom: "ujuno",
         exponent: 6,
@@ -138,5 +135,20 @@ export const chainMap = {
         prefix:"terra",
         claim_min:0.5,
         collect_min:1
+    },
+    "test-1":{
+        chainId: "test-1",
+        denom: "ucmdx",
+        chainName: "Comdex Test Chain",
+        coinDenom: "CMDX",
+        coinMinimalDenom: "ucmdx",
+        coinDecimals: 6,
+        min_tx_fee: ["6250000","100000"],
+        gas:4500000,
+        maxGas:4500000,
+        prefix: "comdex",
+        rpc: "https://test-rpc.comdex.one",
+        rest: "https://test-rest.comdex.one",
+        explorer: "https://dev-explorer.comdex.one"
     }
 }
